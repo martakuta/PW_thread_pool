@@ -4,17 +4,30 @@
 #include <stddef.h>
 #include <semaphore.h>
 #include <pthread.h>
+#include <stdbool.h>
 
 typedef struct runnable {
   void (*function)(void *, size_t);
-  void *arg;
+  void *args;
   size_t argsz;
 } runnable_t;
 
+typedef struct to_do_list tdl_t;
+
+typedef struct to_do_list {
+    runnable_t task;
+    tdl_t* next;
+} tdl_t;
+
 typedef struct thread_pool {
     sem_t sem;
+    sem_t mutex;
     size_t size;
+    size_t free_threads;
     pthread_t* threads;
+    runnable_t task;
+    tdl_t* to_do_list;
+    bool alive;
 } thread_pool_t;
 
 int thread_pool_init(thread_pool_t *pool, size_t pool_size);
