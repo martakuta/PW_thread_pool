@@ -101,7 +101,7 @@ void *work_in_pool(thread_pool_t* pool) {
         runnable_t my_task = pool->task;
         sem_post(&(pool->mutex));
         my_task.function(my_task.arg, my_task.argsz);
-        printf("did the first\n");
+        //printf("did the first\n");
         sem_wait(&(pool->mutex));
 
         while (pool->to_do_list != NULL) {
@@ -111,7 +111,8 @@ void *work_in_pool(thread_pool_t* pool) {
             future_t* prev_future;
             if (is_future) {
                 prev_future = (future_t *) pool->to_do_list->previous;
-                printf("********%d\n", (int)prev_future->answer);
+                //printf("********%d\n", (int)prev_future->answer);
+                //printf("********%p %d\n", prev_future, prev_future->ready);
             }
 
             my_task = pool->to_do_list->task;
@@ -120,15 +121,23 @@ void *work_in_pool(thread_pool_t* pool) {
             sem_post(&(pool->mutex));
 
             if (is_future && prev_future->ready == false) {
-                printf("czekam na wynik\n");
+                //printf("czekam na wynik\n");
                 await(prev_future);
             }
 
             if (is_future) {
+                callable_t c = ((future_t*)my_task.arg)->callable;
+                callable_t* new = (callable_t*)malloc(sizeof(callable_t));
+                new->function = c.function;
+                new->arg = prev_future->answer;
+                new->argsz = c.argsz;
+                ((future_t*)my_task.arg)->callable = *new;
+/*
                 printf("******2**%d\n", (int)prev_future->answer);
+                printf("******2**%p\n", prev_future);
                 future_t* f = (future_t*)my_task.arg;
-                callable_t c = f->callable;
-                printf("%d\n", (int)c.arg);
+                callable_t c2 = f->callable;
+                printf("*****3***%d\n", (int)c2.arg);*/
             }
 
             my_task.function(my_task.arg, my_task.argsz);

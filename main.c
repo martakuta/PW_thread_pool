@@ -98,12 +98,14 @@ int main(int argc, char* argv[]) {
     async(pool, future_tab[0], *fut1);
 
     await(future_tab[0]);
+    //printf("w mainie: %d %d\n", (int)fut1->arg, (int)future_tab[0]->answer);
 
     for (int i = 1; i <= 5; i++) {
         defer(pool, *task4);
         defer(pool, *task5);
         defer(pool, *task6);
         //fut1->arg = (void*)i;
+        //printf("!!!!!!!!!!!!%p\n", future_tab[i]);
         map(pool, future_tab[i], future_tab[i-1], (void*)dodaj1);
         //await(future_tab[i]);
     }

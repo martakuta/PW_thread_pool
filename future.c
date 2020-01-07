@@ -6,11 +6,11 @@ typedef void *(*function_t)(void *);
 
 
 void wrapper(future_t* future, size_t size) {
-    printf("wrapper %d\n", (int)future->callable.arg);
+    //printf("wrapper %d\n", (int)future->callable.arg);
     callable_t c = future->callable;
     future->answer = c.function(c.arg, c.argsz, &future->ans_size);
     future->ready = true;
-    printf("w is ready ( %d, %d )\n", (int)future->answer, (int)c.arg);
+    //printf("w is ready ( %d, %d )\n", (int)future->answer, (int)c.arg);
     //user can look on the answer because he has a reference to the "future"
 }
 
@@ -39,9 +39,8 @@ int defer_future(struct thread_pool *pool, runnable_t runnable, future_t* from) 
         pool->end_of_list = t;
         //printf("dodaj na koniec\n");
 
-        future_t* f = (future_t*)runnable.arg;
-        callable_t c = f->callable;
-        printf("########%d\n", (int)c.arg);
+       // future_t* f = (future_t*)runnable.arg;
+        //printf("############%p\n", f);
 
         sem_post(&(pool->mutex));
     }
@@ -77,16 +76,18 @@ int map(thread_pool_t *pool, future_t *future, future_t *from,
 
     future->callable = *callable;
     future->ready = false;
+    future->answer = NULL;
 
     runnable_t* runnable = (runnable_t*)malloc(sizeof(runnable_t));
     runnable->arg = future;
     runnable->argsz = callable->argsz;
     runnable->function = (void*)wrapper;
 
-    future_t* f = (future_t*)runnable->arg;
+    /*future_t* f = (future_t*)runnable->arg;
     callable_t c = f->callable;
-    printf("@@@@@@@@@@@@%d\n", (int)c.arg);
-
+    future_t* f2 = (future_t*)callable->arg;
+    printf("@@@@@@@@@@@@%p\n", f);
+*/
     defer_future(pool, *runnable, from);
 
     return 0;
