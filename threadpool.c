@@ -9,7 +9,7 @@
 
 int thread_pool_init(thread_pool_t *pool, size_t num_threads) {
 
-    printf("init\n");
+    //printf("init\n");
 
     pool->size = num_threads;
     pool->free_threads = num_threads;
@@ -32,14 +32,14 @@ int thread_pool_init(thread_pool_t *pool, size_t num_threads) {
         pool->threads[i] = thread;
     }
 
-    printf("initialised\n");
+    //printf("initialised\n");
 
     return 0;
 }
 
 void thread_pool_destroy(struct thread_pool *pool) {
 
-    printf("\ndestroy\n");
+    //printf("\ndestroy\n");
     runnable_t* finish = (runnable_t*)malloc(sizeof(runnable_t));
     finish->arg = NULL;
     finish->function = NULL;
@@ -49,14 +49,14 @@ void thread_pool_destroy(struct thread_pool *pool) {
 
     for (size_t i = 0; i < pool->size; i++) {
         pthread_join(pool->threads[i], NULL);
-        printf("Thread nr %zd exiting\n", i);
+        //printf("Thread nr %zd exiting\n", i);
     }
     free(pool->threads);
     sem_destroy(&(pool->sem));
     sem_destroy(&(pool->mutex));
     free(finish);
 
-    printf("destroyed\n");
+    //printf("destroyed\n");
 }
 
 int defer(thread_pool_t *pool, runnable_t runnable) {
@@ -88,7 +88,7 @@ int defer(thread_pool_t *pool, runnable_t runnable) {
 
 void *work_in_pool(thread_pool_t* pool) {
 
-    printf("Hello, I'm ready to work!\n");
+    //printf("Hello, I'm ready to work!\n");
 
     while (true) {
         sem_wait(&(pool->sem));  // TODO obsluga bledow semafora

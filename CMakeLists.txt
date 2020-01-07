@@ -17,9 +17,10 @@ endmacro()
 
 include_directories(include)
 add_library(asyncc STATIC threadpool.c future.c silnia.c macierz.c main.c)
+add_executable(silnia silnia.c)
 add_executable(main main.c)
 add_executable(macierz macierz.c)
-add_executable(silnia silnia.c)
+
 add_subdirectory(test)
 
 install(TARGETS asyncc DESTINATION .)
