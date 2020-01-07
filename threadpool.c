@@ -100,16 +100,18 @@ void *work_in_pool(thread_pool_t* pool) {
 
         while (pool->to_do_list != NULL) {
             printf("while\n");
-            my_task = pool->to_do_list->task;
-            pool->to_do_list = pool->to_do_list->next;
+            bool is_future = pool->to_do_list->is_future;
 
             future_t* prev_future;
-            if (pool->to_do_list->is_future)
+            if (is_future)
                 prev_future = (future_t *) pool->to_do_list->previous;
 
+            my_task = pool->to_do_list->task;
+            pool->to_do_list = pool->to_do_list->next;
+            
             sem_post(&(pool->mutex));
 
-            if (pool->to_do_list->is_future && prev_future->ready == false) {
+            if (is_future && prev_future->ready == false) {
                 await(prev_future);
             }
 
