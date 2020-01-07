@@ -99,7 +99,7 @@ int main(int argc, char* argv[]) {
 
     await(future_tab[0]);
 
-    for (int i = 1; i <= 50; i++) {
+    for (int i = 1; i <= 5; i++) {
         defer(pool, *task4);
         defer(pool, *task5);
         defer(pool, *task6);

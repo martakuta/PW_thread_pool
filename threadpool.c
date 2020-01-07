@@ -15,6 +15,8 @@ int thread_pool_init(thread_pool_t *pool, size_t num_threads) {
     pool->free_threads = num_threads;
     pool->threads = (pthread_t*)malloc(num_threads * sizeof(pthread_t));
     pool->alive = true;
+    pool->to_do_list = NULL;
+    pool->end_of_list = NULL;
     sem_t sem, mutex;
     sem_init(&sem, 0, 0);
     sem_init(&mutex, 0, 1);
@@ -38,7 +40,9 @@ int thread_pool_init(thread_pool_t *pool, size_t num_threads) {
 void thread_pool_destroy(struct thread_pool *pool) {
 
     printf("\ndestroy\n");
-    runnable_t* finish = (runnable_t*)malloc(sizeof(runnable_t)); //everything in it is NULL
+    runnable_t* finish = (runnable_t*)malloc(sizeof(runnable_t));
+    finish->arg = NULL;
+    finish->function = NULL;
     pool->alive = false;
     while (pool->free_threads > 0)
         defer(pool, *finish);
@@ -54,7 +58,7 @@ void thread_pool_destroy(struct thread_pool *pool) {
     printf("destroyed\n");
 }
 
-int defer(struct thread_pool *pool, runnable_t runnable) {
+int defer(thread_pool_t *pool, runnable_t runnable) {
 
     sem_wait(&(pool->mutex));
     //printf("defer %zd\n", pool->free_threads);
@@ -68,6 +72,8 @@ int defer(struct thread_pool *pool, runnable_t runnable) {
         tdl_t* t = (tdl_t*)malloc(sizeof(tdl_t));
         t->task = runnable;
         t->is_future = false;
+        t->next = NULL;
+        t->previous = NULL;
         if (pool->to_do_list == NULL) {
             pool->to_do_list = t;
             //printf("pierwszy element\n");
@@ -99,51 +105,36 @@ void *work_in_pool(thread_pool_t* pool) {
         sem_wait(&(pool->mutex));
 
         while (pool->to_do_list != NULL) {
-            printf("while\n");
+            //printf("while\n");
             bool is_future = pool->to_do_list->is_future;
 
             future_t* prev_future;
-            if (is_future)
+            if (is_future) {
                 prev_future = (future_t *) pool->to_do_list->previous;
+                printf("********%d\n", (int)prev_future->answer);
+            }
 
             my_task = pool->to_do_list->task;
             pool->to_do_list = pool->to_do_list->next;
-            
+
             sem_post(&(pool->mutex));
 
             if (is_future && prev_future->ready == false) {
+                printf("czekam na wynik\n");
                 await(prev_future);
+            }
+
+            if (is_future) {
+                printf("******2**%d\n", (int)prev_future->answer);
+                future_t* f = (future_t*)my_task.arg;
+                callable_t c = f->callable;
+                printf("%d\n", (int)c.arg);
             }
 
             my_task.function(my_task.arg, my_task.argsz);
             sem_wait(&(pool->mutex));
         }
 
-        /*while (pool->to_do_list != NULL) {
-
-
-
-            while (pool->to_do_list != NULL) {
-                if (pool->to_do_list->is_future && prev_future->ready == false) {
-                    //if the element has to wait for its future answer, I'm carrying it to the end of list
-                    printf("*************na koniec\n");
-                    pool->end_of_list->next = pool->to_do_list;
-                    pool->end_of_list = pool->to_do_list;
-                    pool->to_do_list = pool->to_do_list->next;
-                    pool->end_of_list->next = NULL;
-                }
-                else {
-                    //else I'm invoking the function
-                    printf("robię to!\n");
-                    my_task = pool->to_do_list->task;
-                    pool->to_do_list = pool->to_do_list->next;
-                    sem_post(&(pool->mutex));
-                    my_task.function(my_task.arg, my_task.argsz);
-                    sem_wait(&(pool->mutex));
-                }
-            }
-
-        }*/
         if (pool->alive == false) {
             sem_post(&(pool->mutex));
             return 0;
