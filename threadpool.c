@@ -1,11 +1,11 @@
 #include "threadpool.h"
+#include "future.h"
 #include <semaphore.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdbool.h>
-#include <signal.h>
 
 int thread_pool_init(thread_pool_t *pool, size_t num_threads) {
 
@@ -66,9 +66,16 @@ int defer(struct thread_pool *pool, runnable_t runnable) {
     }
     else {
         tdl_t* t = (tdl_t*)malloc(sizeof(tdl_t));
-        t->next = pool->to_do_list;
         t->task = runnable;
-        pool->to_do_list = t;
+        t->is_future = false;
+        if (pool->to_do_list == NULL) {
+            pool->to_do_list = t;
+            //printf("pierwszy element\n");
+        } else {
+            pool->end_of_list->next = t;
+        }
+        pool->end_of_list = t;
+        //printf("dodaj na koniec\n");
         sem_post(&(pool->mutex));
     }
 
@@ -80,26 +87,61 @@ void *work_in_pool(thread_pool_t* pool) {
     printf("Hello, I'm ready to work!\n");
 
     while (true) {
-        sem_wait(&(pool->sem));
-        if (pool->task.function == NULL) {
+        sem_wait(&(pool->sem));  // TODO obsluga bledow semafora
+        if (pool->task.function == NULL) { //it is NULL when the pool should be destroyed
             sem_post(&(pool->mutex));
             return 0;
         }
-        //printf("work\n");
         runnable_t my_task = pool->task;
         sem_post(&(pool->mutex));
-        my_task.function(my_task.args, my_task.argsz);
-        //printf("finished work\n");
+        my_task.function(my_task.arg, my_task.argsz);
+        printf("did the first\n");
         sem_wait(&(pool->mutex));
+
         while (pool->to_do_list != NULL) {
+            printf("while\n");
             my_task = pool->to_do_list->task;
             pool->to_do_list = pool->to_do_list->next;
+
+            future_t* prev_future;
+            if (pool->to_do_list->is_future)
+                prev_future = (future_t *) pool->to_do_list->previous;
+
             sem_post(&(pool->mutex));
-            //printf("work from tdl\n");
-            my_task.function(my_task.args, my_task.argsz);
-            //printf("finished work from tdl\n");
+
+            if (pool->to_do_list->is_future && prev_future->ready == false) {
+                await(prev_future);
+            }
+
+            my_task.function(my_task.arg, my_task.argsz);
             sem_wait(&(pool->mutex));
         }
+
+        /*while (pool->to_do_list != NULL) {
+
+
+
+            while (pool->to_do_list != NULL) {
+                if (pool->to_do_list->is_future && prev_future->ready == false) {
+                    //if the element has to wait for its future answer, I'm carrying it to the end of list
+                    printf("*************na koniec\n");
+                    pool->end_of_list->next = pool->to_do_list;
+                    pool->end_of_list = pool->to_do_list;
+                    pool->to_do_list = pool->to_do_list->next;
+                    pool->end_of_list->next = NULL;
+                }
+                else {
+                    //else I'm invoking the function
+                    printf("robię to!\n");
+                    my_task = pool->to_do_list->task;
+                    pool->to_do_list = pool->to_do_list->next;
+                    sem_post(&(pool->mutex));
+                    my_task.function(my_task.arg, my_task.argsz);
+                    sem_wait(&(pool->mutex));
+                }
+            }
+
+        }*/
         if (pool->alive == false) {
             sem_post(&(pool->mutex));
             return 0;

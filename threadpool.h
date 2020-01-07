@@ -8,7 +8,7 @@
 
 typedef struct runnable {
   void (*function)(void *, size_t);
-  void *args;
+  void *arg;
   size_t argsz;
 } runnable_t;
 
@@ -16,6 +16,8 @@ typedef struct to_do_list tdl_t;
 
 typedef struct to_do_list {
     runnable_t task;
+    bool is_future;
+    void* previous;
     tdl_t* next;
 } tdl_t;
 
@@ -27,6 +29,8 @@ typedef struct thread_pool {
     pthread_t* threads;
     runnable_t task;
     tdl_t* to_do_list;
+    tdl_t* end_of_list;
+    //fl_t* future_list;
     bool alive;
 } thread_pool_t;
 
