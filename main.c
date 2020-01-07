@@ -67,14 +67,14 @@ int main(int argc, char* argv[]) {
 
     await(future_tab[0]);
 
-    for (int i = 1; i <= 50; i++) {
+    for (int i = 1; i <= 25; i++) {
         defer(pool, *task4);
         defer(pool, *task5);
         defer(pool, *task6);
         //fut1->arg = (void*)i;
-        //map(pool, future_tab[2*i-1], future_tab[2*i-2], (void*)dodaj1);
-        //map(pool2, future_tab[2*i], future_tab[2*i-1], (void*)dodaj1);
-        map(pool2, future_tab[i], future_tab[i-1], (void*)dodaj1);
+        map(pool, future_tab[2*i-1], future_tab[2*i-2], (void*)dodaj1);
+        map(pool2, future_tab[2*i], future_tab[2*i-1], (void*)dodaj1);
+        //map(pool2, future_tab[i], future_tab[i-1], (void*)dodaj1);
     }
     printf("defered everything\n");
     sleep(3);

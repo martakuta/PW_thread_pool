@@ -28,7 +28,7 @@ int defer_future(struct thread_pool *pool, runnable_t runnable, future_t* from) 
     pool->end_of_list = t;
 
     pool->task = runnable;
-    if (pool->free_threads > 0 && from->ready) {
+    if ((pool->free_threads > 0 && from->ready) || pool->free_threads == pool->size) {
         pool->free_threads--;
         sem_post(&(pool->sem)); //dziedziczenie mutex
     }

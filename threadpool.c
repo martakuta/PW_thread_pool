@@ -97,10 +97,7 @@ void *work_in_pool(thread_pool_t* pool) {
             return 0;
         }
         runnable_t my_task = pool->task;
-        /*sem_post(&(pool->mutex));
-        my_task.function(my_task.arg, my_task.argsz);
-        sem_wait(&(pool->mutex));
-*/
+
         while (pool->to_do_list != NULL) {
             bool is_future = pool->to_do_list->is_future;
 
