@@ -27,11 +27,11 @@ typedef struct thread_pool {
     size_t size;
     size_t free_threads;
     pthread_t* threads;
-    runnable_t task;
     tdl_t* to_do_list;
     tdl_t* end_of_list;
     //fl_t* future_list;
     bool alive;
+    int id;
 } thread_pool_t;
 
 int thread_pool_init(thread_pool_t *pool, size_t pool_size);

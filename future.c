@@ -6,11 +6,9 @@ typedef void *(*function_t)(void *);
 
 
 void wrapper(future_t* future, size_t size) {
-    //printf("wrapper %d\n", (int)future->callable.arg);
     callable_t c = future->callable;
     future->answer = c.function(c.arg, c.argsz, &future->ans_size);
     future->ready = true;
-    //printf("w is ready ( %d, %d )\n", (int)future->answer, (int)c.arg);
     //user can look on the answer because he has a reference to the "future"
 }
 
@@ -18,31 +16,22 @@ int defer_future(struct thread_pool *pool, runnable_t runnable, future_t* from) 
 
     //printf("defer future %zd\n", pool->free_threads);
     sem_wait(&(pool->mutex));
-    pool->task = runnable;
-    if (pool->free_threads > 0 && from->ready) {
-        pool->free_threads--;
-        pool->task = runnable;
-        sem_post(&(pool->sem)); //dziedziczenie mutex
+
+    tdl_t* t = (tdl_t*)malloc(sizeof(tdl_t));
+    t->task = runnable;
+    t->is_future = true;
+    t->previous = from;
+    t->next = NULL;
+    if (pool->to_do_list == NULL) {
+        pool->to_do_list = t;
+    } else {
+        pool->end_of_list->next = t;
     }
-    else {
-        tdl_t* t = (tdl_t*)malloc(sizeof(tdl_t));
-        t->task = runnable;
-        t->is_future = true;
-        t->previous = from;
-        t->next = NULL;
-        if (pool->to_do_list == NULL) {
-            pool->to_do_list = t;
-            //printf("pierwszy element\n");
-        } else {
-            pool->end_of_list->next = t;
-        }
-        pool->end_of_list = t;
-        //printf("dodaj na koniec\n");
+    pool->end_of_list = t;
 
-       // future_t* f = (future_t*)runnable.arg;
-        //printf("############%p\n", f);
-
-        sem_post(&(pool->mutex));
+    if ((pool->free_threads > 0 && from->ready) || pool->free_threads == pool->size) {
+        pool->free_threads--;
+        sem_post(&(pool->sem)); //dziedziczenie mutex
     }
 
     return 0;
@@ -65,9 +54,6 @@ int async(thread_pool_t* pool, future_t *future, callable_t callable) {
 
 int map(thread_pool_t *pool, future_t *future, future_t *from,
         void *(*function)(void *, size_t, size_t *)) {
-    //nie czeka az poprzedni sie skonczy wykonywac, ale dodaje zadanie do puli zadan
-    // do zrobienia, gdy beda one mialy swoj wynik
-    //dzieki temu nie blokuje maina wywolaniami map
 
     callable_t* callable = (callable_t*)malloc(sizeof(callable_t));
     callable->function = function;
@@ -83,11 +69,6 @@ int map(thread_pool_t *pool, future_t *future, future_t *from,
     runnable->argsz = callable->argsz;
     runnable->function = (void*)wrapper;
 
-    /*future_t* f = (future_t*)runnable->arg;
-    callable_t c = f->callable;
-    future_t* f2 = (future_t*)callable->arg;
-    printf("@@@@@@@@@@@@%p\n", f);
-*/
     defer_future(pool, *runnable, from);
 
     return 0;

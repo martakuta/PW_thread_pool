@@ -6,26 +6,6 @@
 #include "threadpool.h"
 #include "future.h"
 
-//void (*function)(void *, size_t);
-void text(const char* s, size_t length) {
-    //printf("text: ");
-    for (size_t i = 0; i < length; i++)
-        printf("%c", *(s+i));
-    //printf("\n");
-}
-
-void number(int a, size_t size) {
-
-    //printf("number: ");
-    printf("%d", a);
-}
-
-void power(int a, size_t size) {
-
-    //printf("power: %d^2 = ", a);
-    printf("%d", a*a);
-}
-
 void fun1(int a, size_t size) {
 
     usleep(1000);
@@ -44,7 +24,7 @@ void fun3(int a, size_t size) {
 int dodaj1(int a, size_t size, size_t* ret_size) {
 
     usleep(100);
-    printf("%d ", a+1);
+    printf("%d* ", a+1);
     *ret_size = 1;
     return a+1;
 }
@@ -53,21 +33,11 @@ int main(int argc, char* argv[]) {
 
     thread_pool_t* pool = malloc(sizeof(thread_pool_t));
     thread_pool_init(pool, 5);
+    pool->id = 1;
 
-    runnable_t* task1 = (runnable_t*)malloc(sizeof(runnable_t));
-    task1->function = (void*)text;
-    task1->arg = "A";
-    task1->argsz = strlen(task1->arg);
-
-    runnable_t* task2 = (runnable_t*)malloc(sizeof(runnable_t));
-    task2->function = (void*)number;
-    task2->arg = (void*)3;
-    task2->argsz = 1;
-
-    runnable_t* task3 = (runnable_t*)malloc(sizeof(runnable_t));
-    task3->function = (void*)power;
-    task3->arg = (void*)3;
-    task3->argsz = 1;
+    thread_pool_t* pool2 = malloc(sizeof(thread_pool_t));
+    thread_pool_init(pool2, 3);
+    pool2->id = 2;
 
     runnable_t* task4 = (runnable_t*)malloc(sizeof(runnable_t));
     task4->function = (void*)fun1;
@@ -98,20 +68,31 @@ int main(int argc, char* argv[]) {
     async(pool, future_tab[0], *fut1);
 
     await(future_tab[0]);
-    //printf("w mainie: %d %d\n", (int)fut1->arg, (int)future_tab[0]->answer);
 
     for (int i = 1; i <= 5; i++) {
+        printf("%d\n", i);
         defer(pool, *task4);
         defer(pool, *task5);
         defer(pool, *task6);
         //fut1->arg = (void*)i;
-        //printf("!!!!!!!!!!!!%p\n", future_tab[i]);
-        map(pool, future_tab[i], future_tab[i-1], (void*)dodaj1);
-        //await(future_tab[i]);
+        map(pool, future_tab[2*i-1], future_tab[2*i-2], (void*)dodaj1);
+        map(pool2, future_tab[2*i], future_tab[2*i-1], (void*)dodaj1);
+        //map(pool2, future_tab[i], future_tab[i-1], (void*)dodaj1);
     }
     printf("defered everything\n");
     sleep(3);
     thread_pool_destroy(pool);
+    thread_pool_destroy(pool2);
+    for (int i = 0; i < 51; i++) {
+        free(future_tab[i]);
+    }
+    free(future_tab);
+    free(pool);
+    free(pool2);
+    free(task4);
+    free(task5);
+    free(task6);
+    free(fut1);
     printf("Main thread exiting.\n");
 
     return 0;

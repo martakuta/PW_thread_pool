@@ -54,6 +54,7 @@ void thread_pool_destroy(struct thread_pool *pool) {
     free(pool->threads);
     sem_destroy(&(pool->sem));
     sem_destroy(&(pool->mutex));
+    free(finish);
 
     printf("destroyed\n");
 }
@@ -61,28 +62,22 @@ void thread_pool_destroy(struct thread_pool *pool) {
 int defer(thread_pool_t *pool, runnable_t runnable) {
 
     sem_wait(&(pool->mutex));
-    //printf("defer %zd\n", pool->free_threads);
-    pool->task = runnable;
+
+    tdl_t* t = (tdl_t*)malloc(sizeof(tdl_t));
+    t->task = runnable;
+    t->is_future = false;
+    t->next = NULL;
+    t->previous = NULL;
+    if (pool->to_do_list == NULL) {
+        pool->to_do_list = t;
+    } else {
+        pool->end_of_list->next = t;
+    }
+    pool->end_of_list = t;
+
     if (pool->free_threads > 0) {
         pool->free_threads--;
-        pool->task = runnable;
         sem_post(&(pool->sem)); //dziedziczenie mutex
-    }
-    else {
-        tdl_t* t = (tdl_t*)malloc(sizeof(tdl_t));
-        t->task = runnable;
-        t->is_future = false;
-        t->next = NULL;
-        t->previous = NULL;
-        if (pool->to_do_list == NULL) {
-            pool->to_do_list = t;
-            //printf("pierwszy element\n");
-        } else {
-            pool->end_of_list->next = t;
-        }
-        pool->end_of_list = t;
-        //printf("dodaj na koniec\n");
-        sem_post(&(pool->mutex));
     }
 
     return 0;
@@ -93,53 +88,48 @@ void *work_in_pool(thread_pool_t* pool) {
     printf("Hello, I'm ready to work!\n");
 
     while (true) {
-        sem_wait(&(pool->sem));  // TODO obsluga bledow semafora
-        if (pool->task.function == NULL) { //it is NULL when the pool should be destroyed
-            sem_post(&(pool->mutex));
-            return 0;
-        }
-        runnable_t my_task = pool->task;
-        sem_post(&(pool->mutex));
-        my_task.function(my_task.arg, my_task.argsz);
-        //printf("did the first\n");
-        sem_wait(&(pool->mutex));
+
+        runnable_t my_task;
 
         while (pool->to_do_list != NULL) {
-            //printf("while\n");
             bool is_future = pool->to_do_list->is_future;
 
             future_t* prev_future;
             if (is_future) {
                 prev_future = (future_t *) pool->to_do_list->previous;
-                //printf("********%d\n", (int)prev_future->answer);
-                //printf("********%p %d\n", prev_future, prev_future->ready);
             }
 
             my_task = pool->to_do_list->task;
+            tdl_t* help = pool->to_do_list;
             pool->to_do_list = pool->to_do_list->next;
+            free(help);
 
             sem_post(&(pool->mutex));
 
             if (is_future && prev_future->ready == false) {
-                //printf("czekam na wynik\n");
+                //printf("\nawait... %d\n", pool->id);
                 await(prev_future);
+                //printf("\n...awaited %d\n", pool->id);
             }
+            else {
+                //printf("\nnot waiting %d\n", pool->id);
+            }
+
+            sem_wait(&(pool->mutex));
+            callable_t* new;
 
             if (is_future) {
                 callable_t c = ((future_t*)my_task.arg)->callable;
-                callable_t* new = (callable_t*)malloc(sizeof(callable_t));
+                new = (callable_t*)malloc(sizeof(callable_t));
                 new->function = c.function;
                 new->arg = prev_future->answer;
                 new->argsz = c.argsz;
                 ((future_t*)my_task.arg)->callable = *new;
-/*
-                printf("******2**%d\n", (int)prev_future->answer);
-                printf("******2**%p\n", prev_future);
-                future_t* f = (future_t*)my_task.arg;
-                callable_t c2 = f->callable;
-                printf("*****3***%d\n", (int)c2.arg);*/
+                //printf("\nready %d %d\n", pool->id, (int)prev_future->answer);
             }
 
+            printf("zaraz będzie zrobione\n");
+            sem_post(&(pool->mutex));
             my_task.function(my_task.arg, my_task.argsz);
             sem_wait(&(pool->mutex));
         }
