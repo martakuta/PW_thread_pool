@@ -33,11 +33,9 @@ int main(int argc, char* argv[]) {
 
     thread_pool_t* pool = malloc(sizeof(thread_pool_t));
     thread_pool_init(pool, 5);
-    pool->id = 1;
 
     thread_pool_t* pool2 = malloc(sizeof(thread_pool_t));
     thread_pool_init(pool2, 3);
-    pool2->id = 2;
 
     runnable_t* task4 = (runnable_t*)malloc(sizeof(runnable_t));
     task4->function = (void*)fun1;
@@ -69,15 +67,14 @@ int main(int argc, char* argv[]) {
 
     await(future_tab[0]);
 
-    for (int i = 1; i <= 5; i++) {
-        printf("%d\n", i);
+    for (int i = 1; i <= 50; i++) {
         defer(pool, *task4);
         defer(pool, *task5);
         defer(pool, *task6);
         //fut1->arg = (void*)i;
-        map(pool, future_tab[2*i-1], future_tab[2*i-2], (void*)dodaj1);
-        map(pool2, future_tab[2*i], future_tab[2*i-1], (void*)dodaj1);
-        //map(pool2, future_tab[i], future_tab[i-1], (void*)dodaj1);
+        //map(pool, future_tab[2*i-1], future_tab[2*i-2], (void*)dodaj1);
+        //map(pool2, future_tab[2*i], future_tab[2*i-1], (void*)dodaj1);
+        map(pool2, future_tab[i], future_tab[i-1], (void*)dodaj1);
     }
     printf("defered everything\n");
     sleep(3);

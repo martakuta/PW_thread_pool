@@ -14,9 +14,7 @@ void wrapper(future_t* future, size_t size) {
 
 int defer_future(struct thread_pool *pool, runnable_t runnable, future_t* from) {
 
-    //printf("defer future %zd\n", pool->free_threads);
     sem_wait(&(pool->mutex));
-
     tdl_t* t = (tdl_t*)malloc(sizeof(tdl_t));
     t->task = runnable;
     t->is_future = true;
@@ -29,9 +27,13 @@ int defer_future(struct thread_pool *pool, runnable_t runnable, future_t* from) 
     }
     pool->end_of_list = t;
 
-    if ((pool->free_threads > 0 && from->ready) || pool->free_threads == pool->size) {
+    pool->task = runnable;
+    if (pool->free_threads > 0 && from->ready) {
         pool->free_threads--;
         sem_post(&(pool->sem)); //dziedziczenie mutex
+    }
+    else {
+        sem_post(&(pool->mutex));
     }
 
     return 0;

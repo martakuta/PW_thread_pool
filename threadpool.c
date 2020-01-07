@@ -62,7 +62,6 @@ void thread_pool_destroy(struct thread_pool *pool) {
 int defer(thread_pool_t *pool, runnable_t runnable) {
 
     sem_wait(&(pool->mutex));
-
     tdl_t* t = (tdl_t*)malloc(sizeof(tdl_t));
     t->task = runnable;
     t->is_future = false;
@@ -75,9 +74,13 @@ int defer(thread_pool_t *pool, runnable_t runnable) {
     }
     pool->end_of_list = t;
 
+    pool->task = runnable;
     if (pool->free_threads > 0) {
         pool->free_threads--;
         sem_post(&(pool->sem)); //dziedziczenie mutex
+    }
+    else {
+        sem_post(&(pool->mutex));
     }
 
     return 0;
@@ -88,9 +91,16 @@ void *work_in_pool(thread_pool_t* pool) {
     printf("Hello, I'm ready to work!\n");
 
     while (true) {
-
-        runnable_t my_task;
-
+        sem_wait(&(pool->sem));  // TODO obsluga bledow semafora
+        if (pool->task.function == NULL) { //it is NULL when the pool should be destroyed
+            sem_post(&(pool->mutex));
+            return 0;
+        }
+        runnable_t my_task = pool->task;
+        /*sem_post(&(pool->mutex));
+        my_task.function(my_task.arg, my_task.argsz);
+        sem_wait(&(pool->mutex));
+*/
         while (pool->to_do_list != NULL) {
             bool is_future = pool->to_do_list->is_future;
 
@@ -107,29 +117,19 @@ void *work_in_pool(thread_pool_t* pool) {
             sem_post(&(pool->mutex));
 
             if (is_future && prev_future->ready == false) {
-                //printf("\nawait... %d\n", pool->id);
                 await(prev_future);
-                //printf("\n...awaited %d\n", pool->id);
             }
-            else {
-                //printf("\nnot waiting %d\n", pool->id);
-            }
-
-            sem_wait(&(pool->mutex));
-            callable_t* new;
 
             if (is_future) {
                 callable_t c = ((future_t*)my_task.arg)->callable;
-                new = (callable_t*)malloc(sizeof(callable_t));
+                callable_t* new = (callable_t*)malloc(sizeof(callable_t));
                 new->function = c.function;
                 new->arg = prev_future->answer;
                 new->argsz = c.argsz;
                 ((future_t*)my_task.arg)->callable = *new;
-                //printf("\nready %d %d\n", pool->id, (int)prev_future->answer);
+
             }
 
-            printf("zaraz będzie zrobione\n");
-            sem_post(&(pool->mutex));
             my_task.function(my_task.arg, my_task.argsz);
             sem_wait(&(pool->mutex));
         }
