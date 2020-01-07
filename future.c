@@ -6,6 +6,7 @@ typedef void *(*function_t)(void *);
 
 
 void wrapper(future_t* future, size_t size) {
+
     callable_t c = future->callable;
     future->answer = c.function(c.arg, c.argsz, &future->ans_size);
     future->ready = true;
